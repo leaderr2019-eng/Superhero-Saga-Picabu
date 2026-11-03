@@ -83,19 +83,17 @@
 
   window.initSDK = function () {
     try {
-      P.hasGlobal = typeof PkbSDK !== 'undefined';
       if (typeof PkbSDK === 'undefined') return;
-      P.initCalled = true;
       PkbSDK.init().then(function (sdk) {
         P.sdk = sdk;
         try { sdk.on('storageSaveError', function (r) { log('storageSaveError', r); }); } catch (e) {}
         P.tryStart(); P.trySync();
-      }).catch(function (e) { P.initErr = String(e && e.message || e); log('init', e); });
+      }).catch(function (e) { log('init', e); });
     } catch (e) { log('initSDK', e); }
   };
 })();
 </script>
-<script async src="https://games.pikabu.ru/sdk/sdk.js" onload="initSDK()" onerror="window.__pkb&&(window.__pkb.loadErr=1)"></script>
+<script async src="https://games.pikabu.ru/sdk/sdk.js" onload="initSDK()"></script>
 <script>
 /* ═══════════════════════════════════════════════════════════
    ЭКРАН: ЗАПРЕТ ЗУМА + ПРИНУДИТЕЛЬНЫЙ ГОРИЗОНТАЛЬНЫЙ РЕЖИМ
@@ -15693,22 +15691,14 @@ function adCanShow() {
   try { return Promise.race([Promise.resolve(PKB_HOST.sdk.ads.rewarded.canShow()).then(v => !!v), new Promise(r => setTimeout(() => r(false), 3000))]).catch(() => false); } catch (_) { return Promise.resolve(false); }
 }
 // true - ход обработан (ждём игрока), false - предложить нечего, продолжаем как раньше
-const PKB_DIAG = true;   // ВРЕМЕННО: показывает, почему не предложена реклама
-function pkbDiag(why) { if (!PKB_DIAG) return; try { showInfoToast('🛠', 'Реклама: диагностика', why, 9000); console.log('[pkb diag]', why); } catch (_) {} }
-function pkbWhy() {
-  const h = PKB_HOST; if (!h) return 'нет моста (PKB_HOST=null)';
-  if (!h.sdk) return 'SDK нет: скрипт ' + (h.loadErr ? 'НЕ загрузился' : 'загружен') + ', PkbSDK ' + (h.hasGlobal ? 'есть' : 'нет') + ', init ' + (h.initCalled ? 'вызван' : 'не вызван') + (h.initErr ? ', ошибка: ' + h.initErr : '');
-  let a = '?'; try { a = typeof h.sdk.ads + '/' + typeof (h.sdk.ads && h.sdk.ads.rewarded) + ' isSupported=' + String(h.sdk.ads && h.sdk.ads.rewarded && h.sdk.ads.rewarded.isSupported); } catch (e) { a = 'ошибка ' + e; }
-  return 'SDK есть, ' + a;
-}
 function outOfMovesOffer() {
   adOffered = false;
-  if (adRefused || coinRun || !adSupported()) { if (!adRefused && !coinRun) pkbDiag(pkbWhy()); return shopOfferOut(); }
+  if (adRefused || coinRun || !adSupported()) return shopOfferOut();
   awaitingExtraMoves = true;
   const tok = ++adTok;
   adCanShow().then(ok => {
     if (tok !== adTok || !awaitingExtraMoves || gameOver) return;
-    if (!ok) { adRefused = true; awaitingExtraMoves = false; pkbDiag('canShow() вернул false (или не ответил за 3 с)'); checkEnd(); return; }
+    if (!ok) { adRefused = true; awaitingExtraMoves = false; checkEnd(); return; }
     adOffered = true; openShop('out');
   });
   return true;
@@ -15740,7 +15730,7 @@ async function watchAdForMoves() {
     return;
   }
   // рекламы нет (нет показов, ошибка, блокировщик): убираем кнопку, играем дальше без неё
-  adRefused = true; adOffered = false; pkbDiag('show(): ' + (res ? JSON.stringify(res) : 'нет ответа/ошибка'));
+  adRefused = true; adOffered = false;
   showInfoToast('📺', __t('Реклама недоступна'), __t('Попробуй позже.'), 2800);
   if (shopCanOut()) { if (btn) btn.remove(); const sub = shopEl.querySelector('.shop-sub'); if (sub) sub.textContent = __t('Ходы закончились! Докупи ходы - иначе уровень будет проигран.'); }
   else declineExtraMoves();
